@@ -4,10 +4,20 @@ public class PlayerCameraController : MonoBehaviour
 {
     public float moveSpeed = 20f;
     public float zoomSpeed = 15f;
+    [Tooltip("Time in seconds to reach target zoom (lower = snappier)")]
+    public float zoomSmoothTime = 0.15f;
+    float zoomVelocity;
     public float rotationSpeed = 5f;
 
     public float minY = 8f;
     public float maxY = 40f;
+
+    float targetZoomY;
+
+    void Start()
+    {
+        targetZoomY = transform.position.y;
+    }
 
     void Update()
     {
@@ -34,11 +44,14 @@ public class PlayerCameraController : MonoBehaviour
     void Zoom()
     {
         float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (Mathf.Abs(scroll) > 0.01f)
+        {
+            targetZoomY -= scroll * zoomSpeed;
+            targetZoomY = Mathf.Clamp(targetZoomY, minY, maxY);
+        }
 
         Vector3 pos = transform.position;
-        pos.y -= scroll * zoomSpeed * 100f * Time.deltaTime;
-        pos.y = Mathf.Clamp(pos.y, minY, maxY);
-
+        pos.y = Mathf.SmoothDamp(pos.y, targetZoomY, ref zoomVelocity, zoomSmoothTime);
         transform.position = pos;
     }
 
@@ -47,7 +60,7 @@ public class PlayerCameraController : MonoBehaviour
         if (Input.GetMouseButton(1)) // Hold Right Mouse Button
         {
             float mouseX = Input.GetAxis("Mouse X");
-            transform.Rotate(Vector3.up, mouseX * rotationSpeed * 100f * Time.deltaTime, Space.World);
+            transform.Rotate(Vector3.up, mouseX * rotationSpeed * 300f * Time.deltaTime, Space.World);
         }
     }
 }

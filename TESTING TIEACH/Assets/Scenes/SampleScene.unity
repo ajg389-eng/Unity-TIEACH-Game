@@ -934,7 +934,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCameraController
   moveSpeed: 20
-  zoomSpeed: 200
+  zoomSpeed: 10
+  zoomSmoothTime: 0.15
   rotationSpeed: 5
   minY: 8
   maxY: 40
