@@ -50,8 +50,15 @@ public class PlayerCameraController : MonoBehaviour
             targetZoomY = Mathf.Clamp(targetZoomY, minY, maxY);
         }
 
+        float dt = Time.unscaledDeltaTime;
+        if (dt <= 0f) return; // avoid NaN when paused (e.g. Management screen open)
+
         Vector3 pos = transform.position;
-        pos.y = Mathf.SmoothDamp(pos.y, targetZoomY, ref zoomVelocity, zoomSmoothTime);
+        if (float.IsNaN(pos.y)) pos.y = targetZoomY;
+        if (float.IsNaN(zoomVelocity)) zoomVelocity = 0f;
+        float newY = Mathf.SmoothDamp(pos.y, targetZoomY, ref zoomVelocity, zoomSmoothTime, Mathf.Infinity, dt);
+        if (float.IsNaN(newY)) newY = targetZoomY;
+        pos.y = newY;
         transform.position = pos;
     }
 

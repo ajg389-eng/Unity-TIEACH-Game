@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0a64736da957674da67cbccc002e6c1, type: 3}
-  m_Name: Shelf
+  m_Name: Tomato
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemName: Shelf
-  prefab: {fileID: 5005083322822336305, guid: 404bd18bf30e27142a37ffc3d533f5d5, type: 3}
+  itemName: 
+  prefab: {fileID: 0}
   price: 10
-  startingQuantity: 1
+  startingQuantity: 0

@@ -8,15 +8,35 @@ public class CustomerAI : MonoBehaviour
     private Vector3 targetPos;
     private bool hasTarget;
 
-    // For “front of line” behavior later
     private bool isFront;
+
+    float queueJoinTime;
+    public float QueueJoinTime => queueJoinTime;
+
+    CustomerOrder order;
+    CustomerOrderLabel orderLabel;
+
+    public CustomerOrder GetOrder() => order;
+
+    public void SetOrder(CustomerOrder o)
+    {
+        order = o;
+        if (orderLabel == null) orderLabel = GetComponent<CustomerOrderLabel>();
+        if (orderLabel == null) orderLabel = gameObject.AddComponent<CustomerOrderLabel>();
+        string label = (order != null && order.lines != null && order.lines.Count > 0) ? order.GetDisplayString() : "No order";
+        orderLabel.Setup(transform, label);
+    }
+
+    public void SetQueueJoinTime(float time)
+    {
+        queueJoinTime = time;
+    }
 
     public void SetTargetRegister(Register r)
     {
         reg = r;
         if (reg == null) return;
 
-        // Register assigns the actual slot position when joining queue
         reg.TryJoinQueue(this);
     }
 
@@ -28,15 +48,20 @@ public class CustomerAI : MonoBehaviour
         hasTarget = true;
     }
 
-    public void OnServed()
+    bool leaving;
+    Vector3 exitTarget;
+
+    public void OnServed(Transform exit)
     {
-        // Simple: leave (later you can walk to exit)
-        Destroy(gameObject);
+        reg = null;
+        hasTarget = true;
+        leaving = true;
+        exitTarget = exit != null ? exit.position : transform.position + transform.forward * 10f;
+        targetPos = exitTarget;
     }
 
     public void OnRegisterDisabled()
     {
-        // Simple: leave if register shuts off
         Destroy(gameObject);
     }
 
@@ -44,13 +69,9 @@ public class CustomerAI : MonoBehaviour
     {
         if (!hasTarget) return;
 
-        // Move to assigned slot
         transform.position = Vector3.MoveTowards(transform.position, targetPos, moveSpeed * Time.deltaTime);
 
-        // If you want service to happen automatically when the front reaches the front slot:
-        if (isFront && Vector3.Distance(transform.position, targetPos) < 0.05f)
-        {
-            // Do nothing by default; service can be triggered by a timer elsewhere.
-        }
+        if (leaving && Vector3.Distance(transform.position, targetPos) < 0.2f)
+            Destroy(gameObject);
     }
 }

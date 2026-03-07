@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 335bdf67ad041114daa4612d64e180b1, type: 3}
+  m_Name: CustomerOrderConfig
+  m_EditorClassIdentifier: Assembly-CSharp::CustomerOrderConfig
+  burgerBase: {fileID: 11400000, guid: 95dd3d3c261bc4942910e0bdb4e9d03e, type: 2}
+  ingredientOptions:
+  - {fileID: 11400000, guid: 15a5bfc97f9dab84eab0bdc5f17d36e9, type: 2}
+  - {fileID: 11400000, guid: d8d67efd93515d241801efe5b3455bcd, type: 2}
+  - {fileID: 11400000, guid: a07ab9cb5fac5014d932b4668cac30bb, type: 2}
+  minIngredients: 1
+  maxIngredients: 3
+  friesItem: {fileID: 11400000, guid: b93463b3dc0bcff4c8340e339119b007, type: 2}

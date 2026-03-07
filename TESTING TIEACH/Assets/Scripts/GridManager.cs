@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
@@ -72,6 +73,103 @@ public class GridManager : MonoBehaviour
         for (int x = startX; x < startX + sizeX; x++)
             for (int y = startY; y < startY + sizeY; y++)
                 Nodes[x, y].occupied = occ;
+    }
+
+    /// <summary>True if the cell is in bounds and not occupied (employee can walk here).</summary>
+    public bool IsWalkable(int x, int y)
+    {
+        if (Nodes == null || x < 0 || y < 0 || x >= Width || y >= Height) return false;
+        return !Nodes[x, y].occupied;
+    }
+
+    /// <summary>Returns the nearest walkable cell to (cx, cy), including (cx,cy) or a neighbor.</summary>
+    public bool FindNearestWalkable(int cx, int cy, out int outX, out int outY)
+    {
+        outX = cx;
+        outY = cy;
+        if (Nodes == null || Width == 0 || Height == 0) return false;
+        int px = Mathf.Clamp(cx, 0, Width - 1);
+        int py = Mathf.Clamp(cy, 0, Height - 1);
+        if (IsWalkable(px, py)) { outX = px; outY = py; return true; }
+        for (int r = 1; r <= Mathf.Max(Width, Height); r++)
+        {
+            for (int dx = -r; dx <= r; dx++)
+                for (int dy = -r; dy <= r; dy++)
+                {
+                    if (dx != 0 && dy != 0) continue;
+                    int nx = px + dx, ny = py + dy;
+                    if (nx >= 0 && nx < Width && ny >= 0 && ny < Height && IsWalkable(nx, ny))
+                    {
+                        outX = nx; outY = ny;
+                        return true;
+                    }
+                }
+        }
+        return false;
+    }
+
+    /// <summary>Path from current world position to target world position using only walkable cells. Returns world positions (cell centers) to follow, or empty if no path.</summary>
+    public List<Vector3> GetPath(Vector3 fromWorld, Vector3 toWorld)
+    {
+        var result = new List<Vector3>();
+        if (Nodes == null || Width == 0 || Height == 0) return result;
+
+        WorldToCell(fromWorld, out int sx, out int sy);
+        WorldToCell(toWorld, out int tx, out int ty);
+        sx = Mathf.Clamp(sx, 0, Width - 1);
+        sy = Mathf.Clamp(sy, 0, Height - 1);
+        if (!FindNearestWalkable(tx, ty, out int gx, out int gy)) return result;
+        if (!IsWalkable(sx, sy) && !FindNearestWalkable(sx, sy, out sx, out sy)) return result;
+
+        var open = new List<(int x, int y, float g, float f)>();
+        var closed = new HashSet<(int, int)>();
+        var parent = new Dictionary<(int, int), (int, int)>();
+        open.Add((sx, sy, 0f, Heuristic(sx, sy, gx, gy)));
+
+        while (open.Count > 0)
+        {
+            open.Sort((a, b) => a.f.CompareTo(b.f));
+            var cur = open[0];
+            open.RemoveAt(0);
+            if (closed.Contains((cur.x, cur.y))) continue;
+            closed.Add((cur.x, cur.y));
+
+            if (cur.x == gx && cur.y == gy)
+            {
+                var path = new List<(int, int)>();
+                var p = (cur.x, cur.y);
+                while (parent.TryGetValue(p, out var prev))
+                {
+                    path.Add(p);
+                    p = prev;
+                }
+                path.Add((sx, sy));
+                path.Reverse();
+                foreach (var c in path)
+                    result.Add(CellToWorld(c.Item1, c.Item2));
+                return result;
+            }
+
+            foreach (var (nx, ny) in Neighbors(cur.x, cur.y))
+            {
+                if (!IsWalkable(nx, ny) || closed.Contains((nx, ny))) continue;
+                float g = cur.g + 1f;
+                float f = g + Heuristic(nx, ny, gx, gy);
+                open.Add((nx, ny, g, f));
+                parent[(nx, ny)] = (cur.x, cur.y);
+            }
+        }
+        return result;
+    }
+
+    static float Heuristic(int x, int y, int gx, int gy) => Mathf.Abs(x - gx) + Mathf.Abs(y - gy);
+
+    IEnumerable<(int x, int y)> Neighbors(int x, int y)
+    {
+        if (x > 0) yield return (x - 1, y);
+        if (x < Width - 1) yield return (x + 1, y);
+        if (y > 0) yield return (x, y - 1);
+        if (y < Height - 1) yield return (x, y + 1);
     }
 
     void OnDrawGizmos()

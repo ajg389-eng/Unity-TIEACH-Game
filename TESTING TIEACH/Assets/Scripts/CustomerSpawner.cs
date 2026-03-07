@@ -7,6 +7,9 @@ public class CustomerSpawner : MonoBehaviour
     public Transform spawnPoint;
     public float spawnInterval = 3f;
 
+    [Tooltip("Assign to give customers random burger + fries orders")]
+    public CustomerOrderConfig orderConfig;
+
     public List<Register> registers = new List<Register>();
 
     float timer;
@@ -24,7 +27,16 @@ public class CustomerSpawner : MonoBehaviour
         var ai = c.GetComponent<CustomerAI>();
 
         if (ai != null)
+        {
+            if (orderConfig != null)
+                ai.SetOrder(orderConfig.GenerateRandomOrder());
+            else
+            {
+                ai.SetOrder(new CustomerOrder());
+                if (Time.frameCount % 60 == 0) Debug.LogWarning("CustomerSpawner: Assign Order Config so customers get burger + ingredients. Showing 'No order'.");
+            }
             ai.SetTargetRegister(r);
+        }
     }
 
     Register GetBestRegister()

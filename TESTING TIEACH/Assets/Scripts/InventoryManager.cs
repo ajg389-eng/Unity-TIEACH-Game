@@ -57,5 +57,11 @@ public class InventoryManager : MonoBehaviour
         return true;
     }
 
-
+    /// <summary>Add one item back to inventory (e.g. when removing a placed object). Does not spend money.</summary>
+    public void AddOne(ItemDefinition item)
+    {
+        if (item == null) return;
+        if (!counts.ContainsKey(item)) counts[item] = 0;
+        counts[item] += 1;
+    }
 }

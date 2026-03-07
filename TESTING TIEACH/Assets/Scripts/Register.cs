@@ -9,10 +9,18 @@ public class Register : MonoBehaviour
     public Transform queueStart;      // empty object at front of the line
     public Vector3 queueDirection = Vector3.back; // direction line extends (world space)
     public float spacing = 1.2f;      // distance between customers
+    [Tooltip("Front customer must be this close to the register before they can be served")]
+    public float serveArrivalRadius = 0.6f;
     public int maxQueue = 6;
 
     private readonly List<CustomerAI> queue = new List<CustomerAI>();
     public int QueueCount => queue.Count;
+
+    [Header("Prepared orders")]
+    [Tooltip("Set by Kitchen when order is assembled and delivered")]
+    CustomerOrder preparedOrder;
+    [Tooltip("Where customers walk to after being served")]
+    public Transform storeExit;
 
     [Header("Cashier")]
     public Transform cashierSpawnPoint;   // empty child behind register
@@ -29,6 +37,7 @@ public class Register : MonoBehaviour
         if (!HasSpace() || customer == null) return false;
         if (queue.Contains(customer)) return true;
 
+        customer.SetQueueJoinTime(Time.time);
         queue.Add(customer);
         UpdateQueueTargets();
         return true;
@@ -41,14 +50,51 @@ public class Register : MonoBehaviour
         UpdateQueueTargets();
     }
 
-    // Call this when the front customer is "served"
-    public void ServeFront()
+    public bool HasPreparedOrder => preparedOrder != null && preparedOrder.lines != null && preparedOrder.lines.Count > 0;
+
+    public CustomerOrder GetFrontCustomerOrder()
     {
-        if (queue.Count == 0) return;
+        if (queue.Count == 0) return null;
         var front = queue[0];
+        return front != null ? front.GetOrder() : null;
+    }
+
+    /// <summary>Kitchen calls this when an order is assembled and delivered to this register. Serves the front customer immediately if their order matches.</summary>
+    public void DeliverOrder(CustomerOrder order)
+    {
+        preparedOrder = order != null ? order.Clone() : null;
+        TryServeFront();
+    }
+
+    /// <summary>Serve front customer only when we have a matching prepared order and they have arrived at the register.</summary>
+    public void TryServeFront()
+    {
+        if (queue.Count == 0 || queueStart == null) return;
+        var front = queue[0];
+        if (front == null) return;
+
+        Vector3 frontSlotPos = queueStart.position + queueDirection.normalized * 0f;
+        float dist = Vector3.Distance(front.transform.position, frontSlotPos);
+        if (dist > serveArrivalRadius)
+            return;
+
+        CustomerOrder order = front.GetOrder();
+        if (order == null || order.lines == null || order.lines.Count == 0)
+            return;
+        if (preparedOrder == null || !order.Matches(preparedOrder))
+            return;
+        preparedOrder = null;
+        CompleteServeFront(front);
+    }
+
+    void CompleteServeFront(CustomerAI front)
+    {
+        if (queue.Count == 0 || queue[0] != front) return;
         queue.RemoveAt(0);
 
-        if (front != null) front.OnServed(); // customer leaves
+        if (StoreStatisticsManager.Instance != null)
+            StoreStatisticsManager.Instance.RecordOrderCompleted(front.QueueJoinTime, this);
+        if (front != null) front.OnServed(storeExit);
         UpdateQueueTargets();
     }
 
@@ -58,7 +104,6 @@ public class Register : MonoBehaviour
 
         if (!isEnabled)
         {
-            // Optional: kick customers out when disabled (keep if you already want this)
             foreach (var c in queue)
                 if (c != null) c.OnRegisterDisabled();
             queue.Clear();
@@ -86,11 +131,10 @@ public class Register : MonoBehaviour
         }
         else
         {
-            // fallback: create a capsule if you didn’t make a prefab
             cashierInstance = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             cashierInstance.transform.SetPositionAndRotation(pos, rot);
             cashierInstance.name = "Cashier";
-            Destroy(cashierInstance.GetComponent<Collider>()); // so it doesn't block stuff
+            Destroy(cashierInstance.GetComponent<Collider>());
         }
 
         cashierInstance.transform.SetParent(transform);
@@ -100,6 +144,12 @@ public class Register : MonoBehaviour
     void Start()
     {
         if (isEnabled) SpawnCashier();
+    }
+
+    void Update()
+    {
+        if (isEnabled)
+            TryServeFront();
     }
 
     void RemoveCashier()
@@ -122,7 +172,6 @@ public class Register : MonoBehaviour
         }
     }
 
-    // Nice visual in Scene view
     void OnDrawGizmosSelected()
     {
         if (!queueStart) return;
