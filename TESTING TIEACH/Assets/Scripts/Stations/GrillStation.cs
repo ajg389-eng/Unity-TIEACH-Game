@@ -6,6 +6,12 @@ using UnityEngine;
 public class GrillStation : MonoBehaviour
 {
     public float cookTimeSeconds = 4f;
+    [Tooltip("Time for employee to place patty on grill.")]
+    public float placeTimeSeconds = 0.5f;
+    [Tooltip("Extra wait after patty is cooked before employee can take it.")]
+    public float waitAfterCookedSeconds = 0.5f;
+    [Tooltip("Time for employee to take cooked patty off grill.")]
+    public float takeTimeSeconds = 0.5f;
     public Vector3 interactionOffset = Vector3.zero;
 
     bool hasPatty;
@@ -13,6 +19,8 @@ public class GrillStation : MonoBehaviour
 
     public Vector3 GetInteractionPosition()
     {
+        var tiles = GetComponent<StationInteractionTiles>();
+        if (tiles != null) return tiles.GetFirstInteractionPosition();
         return transform.position + interactionOffset;
     }
 

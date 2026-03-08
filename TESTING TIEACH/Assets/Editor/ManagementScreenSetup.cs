@@ -27,6 +27,18 @@ public static class ManagementScreenSetup
         }
     }
 
+    [MenuItem("GameObject/UI/Employee Assignment Panel (in-world)", false, 11)]
+    public static void CreateEmployeeAssignmentPanel()
+    {
+        var go = new GameObject("EmployeeAssignmentPanel");
+        var panel = go.AddComponent<EmployeeAssignmentPanel>();
+        var modeManager = Object.FindFirstObjectByType<GameModeManager>();
+        if (modeManager != null) panel.modeManager = modeManager;
+        Undo.RegisterCreatedObjectUndo(go, "Create Employee Assignment Panel");
+        Selection.activeGameObject = go;
+        Debug.Log("Employee Assignment Panel added. In Play mode, click an employee to show assignments; click stations to assign. Ensure employees and stations have Colliders for clicking.");
+    }
+
     [MenuItem(MenuName, false, 10)]
     public static void CreateManagementScreen()
     {

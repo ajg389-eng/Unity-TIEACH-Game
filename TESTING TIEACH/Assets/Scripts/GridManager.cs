@@ -50,6 +50,14 @@ public class GridManager : MonoBehaviour
     public Vector3 CellToWorld(int x, int y)
         => Origin + new Vector3((x + 0.5f) * cellSize, 0f, (y + 0.5f) * cellSize);
 
+    /// <summary>World position for the center of a multi-cell footprint (so 2x1 objects sit centered over both tiles).</summary>
+    public Vector3 GetFootprintCenter(int startX, int startY, int sizeX, int sizeY)
+    {
+        float cx = startX + sizeX * 0.5f;
+        float cy = startY + sizeY * 0.5f;
+        return Origin + new Vector3(cx * cellSize, 0f, cy * cellSize);
+    }
+
     public bool WorldToCell(Vector3 world, out int x, out int y)
     {
         x = Mathf.FloorToInt((world.x - Origin.x) / cellSize);

@@ -17,10 +17,15 @@ public class BuildPlacer : MonoBehaviour
 
     private ItemDefinition placingItem;
     private GameObject ghost;
+    /// <summary>0, 1, 2, 3 = 0ù, 90ù, 180ù, 270ù around Y. Used while placing.</summary>
+    private int placementRotation;
 
     private GameObject draggingObject;
     private BuildFootprint dragFootprint;
     private int dragOrigX, dragOrigY;
+    /// <summary>0, 1, 2, 3 = 0ù, 90ù, 180ù, 270ù while dragging.</summary>
+    private int dragRotation;
+    private int dragOrigRotation;
 
     public bool IsPlacing => placingItem != null;
     public bool IsDragging => draggingObject != null;
@@ -60,9 +65,18 @@ public class BuildPlacer : MonoBehaviour
                 RemoveDraggedAndReturnToInventory();
                 return;
             }
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                dragRotation = (dragRotation + 1) % 4;
+                draggingObject.transform.rotation = Quaternion.Euler(0f, dragRotation * 90f, 0f);
+            }
             if (TryGetHoveredCell(out int dx, out int dy))
             {
-                draggingObject.transform.position = grid.CellToWorld(dx, dy);
+                GetEffectiveDragSize(out int sx, out int sy);
+                ClampPlacementOrigin(ref dx, ref dy, sx, sy);
+                Vector3 pos = grid.GetFootprintCenter(dx, dy, sx, sy);
+                pos.y = GetYOnFloor(draggingObject, grid.Origin.y);
+                draggingObject.transform.position = pos;
                 if (Input.GetMouseButtonDown(0))
                     TryPlaceDraggedAt(dx, dy);
             }
@@ -77,12 +91,25 @@ public class BuildPlacer : MonoBehaviour
             return;
         }
 
-        // Move ghost to hovered cell
+        // R = rotate while placing
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            placementRotation = (placementRotation + 1) % 4;
+            if (ghost)
+                ghost.transform.rotation = Quaternion.Euler(0f, placementRotation * 90f, 0f);
+        }
+
+        // Move ghost to hovered cell (centered on footprint if multi-tile)
         if (TryGetHoveredCell(out int x, out int y))
         {
+            GetEffectivePlacementSize(out int sizeX, out int sizeY);
+            ClampPlacementOrigin(ref x, ref y, sizeX, sizeY);
             if (ghost)
-                ghost.transform.position = grid.CellToWorld(x, y);
-
+            {
+                Vector3 pos = grid.GetFootprintCenter(x, y, sizeX, sizeY);
+                pos.y = GetYOnFloor(ghost, grid.Origin.y);
+                ghost.transform.position = pos;
+            }
             if (Input.GetMouseButtonDown(0))
                 TryPlaceAt(x, y);
         }
@@ -93,10 +120,12 @@ public class BuildPlacer : MonoBehaviour
         if (item == null || item.prefab == null) return;
 
         placingItem = item;
+        placementRotation = 0;
 
         // Make a ghost preview
         if (ghost) Destroy(ghost);
         ghost = Instantiate(item.prefab);
+        ghost.transform.rotation = Quaternion.identity;
 
         MakeTranslucent(ghost, 0.7f); // 0.5 = 50% transparent
 
@@ -146,19 +175,102 @@ public class BuildPlacer : MonoBehaviour
     {
         if (!placementHintText) return;
         placementHintText.gameObject.SetActive(show);
-        if (show) placementHintText.text = dragging ? "LMB: Place    RMB: Remove & return to inventory    ESC: Cancel" : "LMB: Place    ESC: Cancel";
+        if (show) placementHintText.text = dragging ? "LMB: Place    R: Rotate    RMB: Remove & return to inventory    ESC: Cancel" : "LMB: Place    R: Rotate    ESC: Cancel";
+    }
+
+    /// <summary>Combined bounds of all renderers (or colliders) in world space.</summary>
+    static Bounds GetCombinedBounds(GameObject obj)
+    {
+        var renderers = obj.GetComponentsInChildren<Renderer>();
+        if (renderers != null && renderers.Length > 0)
+        {
+            Bounds b = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                b.Encapsulate(renderers[i].bounds);
+            return b;
+        }
+        var colliders = obj.GetComponentsInChildren<Collider>();
+        if (colliders != null && colliders.Length > 0)
+        {
+            Bounds b = colliders[0].bounds;
+            for (int i = 1; i < colliders.Length; i++)
+                b.Encapsulate(colliders[i].bounds);
+            return b;
+        }
+        return new Bounds(obj.transform.position, Vector3.one);
+    }
+
+    /// <summary>World Y so the bottom of the object sits on floorY.</summary>
+    static float GetYOnFloor(GameObject obj, float floorY)
+    {
+        Bounds b = GetCombinedBounds(obj);
+        return floorY - b.min.y + obj.transform.position.y;
+    }
+
+    /// <summary>Effective footprint size for current drag rotation (90/270 swap X and Y).</summary>
+    void GetEffectiveDragSize(out int sizeX, out int sizeY)
+    {
+        sizeX = Mathf.Max(1, dragFootprint != null ? dragFootprint.sizeX : 1);
+        sizeY = Mathf.Max(1, dragFootprint != null ? dragFootprint.sizeY : 1);
+        if (dragRotation == 1 || dragRotation == 3)
+        {
+            int t = sizeX;
+            sizeX = sizeY;
+            sizeY = t;
+        }
+    }
+
+    /// <summary>Effective footprint size for current placement rotation (90/270 swap X and Y).</summary>
+    void GetEffectivePlacementSize(out int sizeX, out int sizeY)
+    {
+        sizeX = 1;
+        sizeY = 1;
+        if (placingItem?.prefab == null) return;
+        var fp = placingItem.prefab.GetComponent<BuildFootprint>();
+        if (fp != null) { sizeX = Mathf.Max(1, fp.sizeX); sizeY = Mathf.Max(1, fp.sizeY); }
+        if (placementRotation == 1 || placementRotation == 3)
+        {
+            int t = sizeX;
+            sizeX = sizeY;
+            sizeY = t;
+        }
     }
 
     bool TryGetHoveredCell(out int x, out int y)
     {
         x = y = 0;
-        if (Camera.main == null) return false;
+        if (Camera.main == null || grid == null) return false;
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (!Physics.Raycast(ray, out RaycastHit hit, 500f, floorLayer))
             return false;
 
-        return grid.WorldToCell(hit.point, out x, out y);
+        if (!grid.WorldToCell(hit.point, out int cx, out int cy))
+            return false;
+        x = Mathf.Clamp(cx, 0, grid.Width - 1);
+        y = Mathf.Clamp(cy, 0, grid.Height - 1);
+        return true;
+    }
+
+    /// <summary>Clamp (x,y) so that footprint (sizeX, sizeY) fits fully inside the grid.</summary>
+    void ClampPlacementOrigin(ref int x, ref int y, int sizeX, int sizeY)
+    {
+        if (grid == null) return;
+        x = Mathf.Clamp(x, 0, grid.Width - sizeX);
+        y = Mathf.Clamp(y, 0, grid.Height - sizeY);
+    }
+
+    /// <summary>Get footprint origin (bottom-left cell) from an object's world position (center) and effective size.</summary>
+    bool GetFootprintOriginFromCenter(Vector3 worldCenter, int sizeX, int sizeY, out int originX, out int originY)
+    {
+        originX = 0;
+        originY = 0;
+        if (grid == null) return false;
+        float cx = (worldCenter.x - grid.Origin.x) / grid.cellSize;
+        float cy = (worldCenter.z - grid.Origin.z) / grid.cellSize;
+        originX = Mathf.RoundToInt(cx - sizeX * 0.5f);
+        originY = Mathf.RoundToInt(cy - sizeY * 0.5f);
+        return originX >= 0 && originX + sizeX <= grid.Width && originY >= 0 && originY + sizeY <= grid.Height;
     }
 
     void TryStartDrag()
@@ -178,17 +290,25 @@ public class BuildPlacer : MonoBehaviour
             GameObject root = fp.gameObject;
             if (root == ghost) continue;
 
-            if (!grid.WorldToCell(root.transform.position, out int ox, out int oy))
-                continue;
+            // Compute effective size from rotation first (needed for origin)
 
+            // Derive rotation from current object (nearest 90ù)
+            float ay = root.transform.eulerAngles.y;
+            int rot = (Mathf.RoundToInt(ay / 90f) % 4 + 4) % 4;
             int sizeX = Mathf.Max(1, fp.sizeX);
             int sizeY = Mathf.Max(1, fp.sizeY);
+            if (rot == 1 || rot == 3) { int t = sizeX; sizeX = sizeY; sizeY = t; }
+
+            if (!GetFootprintOriginFromCenter(root.transform.position, sizeX, sizeY, out int ox, out int oy))
+                continue;
 
             grid.SetOccupied(ox, oy, sizeX, sizeY, false);
             draggingObject = root;
             dragFootprint = fp;
             dragOrigX = ox;
             dragOrigY = oy;
+            dragRotation = rot;
+            dragOrigRotation = rot;
             SetHint(true, true);
             return;
         }
@@ -198,13 +318,13 @@ public class BuildPlacer : MonoBehaviour
     {
         if (draggingObject == null || dragFootprint == null) return;
 
-        int sizeX = Mathf.Max(1, dragFootprint.sizeX);
-        int sizeY = Mathf.Max(1, dragFootprint.sizeY);
-
+        GetEffectiveDragSize(out int sizeX, out int sizeY);
         if (!grid.CanPlace(x, y, sizeX, sizeY))
             return;
 
-        draggingObject.transform.position = grid.CellToWorld(x, y);
+        Vector3 pos = grid.GetFootprintCenter(x, y, sizeX, sizeY);
+        pos.y = GetYOnFloor(draggingObject, grid.Origin.y);
+        draggingObject.transform.position = pos;
         grid.SetOccupied(x, y, sizeX, sizeY, true);
         EndDrag();
     }
@@ -213,8 +333,14 @@ public class BuildPlacer : MonoBehaviour
     {
         if (draggingObject == null || dragFootprint == null) return;
 
-        draggingObject.transform.position = grid.CellToWorld(dragOrigX, dragOrigY);
-        grid.SetOccupied(dragOrigX, dragOrigY, Mathf.Max(1, dragFootprint.sizeX), Mathf.Max(1, dragFootprint.sizeY), true);
+        draggingObject.transform.rotation = Quaternion.Euler(0f, dragOrigRotation * 90f, 0f);
+        int sizeX = Mathf.Max(1, dragFootprint.sizeX);
+        int sizeY = Mathf.Max(1, dragFootprint.sizeY);
+        if (dragOrigRotation == 1 || dragOrigRotation == 3) { int t = sizeX; sizeX = sizeY; sizeY = t; }
+        Vector3 pos = grid.GetFootprintCenter(dragOrigX, dragOrigY, sizeX, sizeY);
+        pos.y = GetYOnFloor(draggingObject, grid.Origin.y);
+        draggingObject.transform.position = pos;
+        grid.SetOccupied(dragOrigX, dragOrigY, sizeX, sizeY, true);
         EndDrag();
     }
 
@@ -249,9 +375,7 @@ public class BuildPlacer : MonoBehaviour
         // Must own one to place
         if (inventory.GetCount(placingItem) <= 0) return;
 
-        int sizeX = 1, sizeY = 1;
-        var fp = placingItem.prefab.GetComponent<BuildFootprint>();
-        if (fp != null) { sizeX = fp.sizeX; sizeY = fp.sizeY; }
+        GetEffectivePlacementSize(out int sizeX, out int sizeY);
 
         // Check space
         if (!grid.CanPlace(x, y, sizeX, sizeY)) return;
@@ -259,9 +383,13 @@ public class BuildPlacer : MonoBehaviour
         // Consume inventory
         if (!inventory.TryConsumeOne(placingItem)) return;
 
-        // Place real object
+        // Place real object (centered on footprint, bottom on floor, with placement rotation)
         var placed = Instantiate(placingItem.prefab);
-        placed.transform.position = grid.CellToWorld(x, y);
+        Vector3 pos = grid.GetFootprintCenter(x, y, sizeX, sizeY);
+        placed.transform.position = pos;
+        placed.transform.rotation = Quaternion.Euler(0f, placementRotation * 90f, 0f);
+        pos.y = GetYOnFloor(placed, grid.Origin.y);
+        placed.transform.position = pos;
         var pbi = placed.AddComponent<PlacedBuildItem>();
         pbi.itemDefinition = placingItem;
 

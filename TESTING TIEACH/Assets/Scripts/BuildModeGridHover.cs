@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class BuildModeGridHover : MonoBehaviour
 {
@@ -35,6 +35,7 @@ public class BuildModeGridHover : MonoBehaviour
         }
 
         // Mouse → Raycast to floor → World pos → Grid cell
+        if (Camera.main == null) return;
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out RaycastHit hit, 200f, floorLayer))
         {
