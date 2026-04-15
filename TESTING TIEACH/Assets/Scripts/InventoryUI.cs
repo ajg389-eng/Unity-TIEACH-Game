@@ -21,23 +21,20 @@ public class InventoryUI : MonoBehaviour
             inventoryButton.onClick.AddListener(TogglePanel);
 
         RefreshAll();
-        ApplyModeVisibility();
+        ApplyModeState();
     }
 
     void Update()
     {
-        // simplest: keep visibility correct each frame
-        ApplyModeVisibility();
+        // Inventory controls Build mode now: open panel => Build, closed => Play.
+        ApplyModeState();
     }
 
-    void ApplyModeVisibility()
+    void ApplyModeState()
     {
-        bool build = modeManager && modeManager.CurrentMode == GameModeManager.Mode.Build;
-
-        if (inventoryButton) inventoryButton.gameObject.SetActive(build);
-
-        // Optional: close panel automatically when leaving build mode
-        if (!build && panel) panel.SetActive(false);
+        if (inventoryButton) inventoryButton.gameObject.SetActive(true);
+        if (modeManager == null || panel == null) return;
+        modeManager.SetMode(panel.activeSelf ? GameModeManager.Mode.Build : GameModeManager.Mode.Play);
     }
 
     public void TogglePanel()

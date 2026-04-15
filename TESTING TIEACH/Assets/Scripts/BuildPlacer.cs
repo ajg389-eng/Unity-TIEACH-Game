@@ -17,13 +17,13 @@ public class BuildPlacer : MonoBehaviour
 
     private ItemDefinition placingItem;
     private GameObject ghost;
-    /// <summary>0, 1, 2, 3 = 0ù, 90ù, 180ù, 270ù around Y. Used while placing.</summary>
+    /// <summary>0, 1, 2, 3 = 0ÔøΩ, 90ÔøΩ, 180ÔøΩ, 270ÔøΩ around Y. Used while placing.</summary>
     private int placementRotation;
 
     private GameObject draggingObject;
     private BuildFootprint dragFootprint;
     private int dragOrigX, dragOrigY;
-    /// <summary>0, 1, 2, 3 = 0ù, 90ù, 180ù, 270ù while dragging.</summary>
+    /// <summary>0, 1, 2, 3 = 0ÔøΩ, 90ÔøΩ, 180ÔøΩ, 270ÔøΩ while dragging.</summary>
     private int dragRotation;
     private int dragOrigRotation;
 
@@ -129,7 +129,7 @@ public class BuildPlacer : MonoBehaviour
 
         MakeTranslucent(ghost, 0.7f); // 0.5 = 50% transparent
 
-        // Optional: disable colliders so raycasts donùt hit the ghost
+        // Optional: disable colliders so raycasts donÔøΩt hit the ghost
         foreach (var c in ghost.GetComponentsInChildren<Collider>())
             c.enabled = false;
 
@@ -292,7 +292,7 @@ public class BuildPlacer : MonoBehaviour
 
             // Compute effective size from rotation first (needed for origin)
 
-            // Derive rotation from current object (nearest 90ù)
+            // Derive rotation from current object (nearest 90ÔøΩ)
             float ay = root.transform.eulerAngles.y;
             int rot = (Mathf.RoundToInt(ay / 90f) % 4 + 4) % 4;
             int sizeX = Mathf.Max(1, fp.sizeX);

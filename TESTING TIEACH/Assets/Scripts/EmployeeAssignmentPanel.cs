@@ -399,10 +399,10 @@ public class EmployeeAssignmentPanel : MonoBehaviour
         panelRoot = new GameObject("EmployeeAssignmentPanel", typeof(RectTransform));
         panelRoot.transform.SetParent(canvas.transform, false);
         var panelRect = (RectTransform)panelRoot.transform;
-        panelRect.anchorMin = new Vector2(0, 0.5f);
-        panelRect.anchorMax = new Vector2(0, 0.5f);
-        panelRect.pivot = new Vector2(0, 0.5f);
-        panelRect.anchoredPosition = new Vector2(20, 0);
+        panelRect.anchorMin = new Vector2(0, 1f);
+        panelRect.anchorMax = new Vector2(0, 1f);
+        panelRect.pivot = new Vector2(0, 1f);
+        panelRect.anchoredPosition = new Vector2(20, -20);
         panelRect.sizeDelta = new Vector2(320, 260);
         var panelImg = panelRoot.AddComponent<Image>();
         panelImg.color = new Color(0.15f, 0.15f, 0.2f, 0.95f);

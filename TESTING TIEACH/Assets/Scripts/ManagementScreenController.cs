@@ -84,7 +84,7 @@ public class ManagementScreenController : MonoBehaviour
     void Update()
     {
         ApplyModeVisibility();
-        if (IsInPlayMode() && Input.GetKeyDown(toggleKey))
+        if (Input.GetKeyDown(toggleKey))
             Toggle();
     }
 
@@ -96,11 +96,8 @@ public class ManagementScreenController : MonoBehaviour
 
     void ApplyModeVisibility()
     {
-        bool playMode = IsInPlayMode();
         if (openButton != null)
-            openButton.gameObject.SetActive(playMode);
-        if (!playMode && managementPanel != null && managementPanel.activeSelf)
-            Close();
+            openButton.gameObject.SetActive(true);
     }
 
     public void Open()
